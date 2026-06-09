@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fizz Video</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-top:    #c8e8f8;
+    --bg-mid:    #ddf0fa;
+    --bg-bot:    #f0f8ff;
+    --white:     #ffffff;
+    --blue:      #5aaae0;
+    --blue-d:    #3080c0;
+    --blue-l:    #b8ddf5;
+    --blue-pale: #e8f4fc;
+    --ink:       #1a3a5c;
+    --ink-mid:   #4a7090;
+    --ink-light: #88aac0;
+    --shadow:    rgba(60, 120, 180, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Quicksand', 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(160deg, var(--bg-top) 0%, var(--bg-mid) 40%, var(--bg-bot) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56px 20px 80px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* 背景の光の層 */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160%;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 20%, rgba(180,220,255,0.3) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 44px;
+    position: relative;
+    z-index: 1;
+  }
+  .logo-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 12px rgba(90,170,224,0.4));
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: var(--ink-light);
+    letter-spacing: 0.1em;
+    font-weight: 300;
+  }
+
+  /* ローディング */
+  .loading-banner {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(90,170,224,0.3);
+    border-radius: 14px;
+    padding: 12px 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-mid);
+    position: relative;
+    z-index: 1;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+  }
+  .loading-banner.hidden { display: none; }
+
+  /* ドロップゾーン */
+  .drop-zone {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(90,170,224,0.35);
+    border-radius: 24px;
+    padding: 60px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 8px 32px var(--shadow), 0 2px 8px rgba(255,255,255,0.5);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    background: rgba(255,255,255,0.8);
+    border-color: var(--blue);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px var(--shadow);
+  }
+  .drop-zone.disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
+
+  .drop-icon { display: block; margin: 0 auto 18px; }
+  .drop-text { font-size: 16px; font-weight: 700; color: var(--ink); letter-spacing: 0.05em; margin-bottom: 10px; }
+  .drop-sub {
+    font-size: 11px; color: var(--ink-light); letter-spacing: 0.08em; font-weight: 300;
+    background: rgba(90,170,224,0.15); display: inline-block;
+    padding: 4px 14px; border-radius: 20px; margin-top: 4px;
+    color: var(--ink-mid);
+  }
+  #file-input { display: none; }
+
+  .panel { display: none; margin-top: 16px; width: 100%; max-width: 480px; }
+  .panel.visible { display: block; }
+
+  /* カード */
+  .card {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(90,170,224,0.25);
+    border-radius: 24px;
+    padding: 28px 26px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 8px 32px var(--shadow), 0 2px 8px rgba(255,255,255,0.6);
+  }
+
+  .file-info {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 24px; padding-bottom: 18px;
+    border-bottom: 1px solid rgba(90,170,224,0.2);
+  }
+  .file-icon {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--blue-l), var(--blue-pale));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(90,170,224,0.2);
+    flex-shrink: 0;
+  }
+  .file-meta { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 700; color: var(--ink); word-break: break-all; }
+  .file-dim { font-size: 11px; color: var(--ink-light); margin-top: 3px; font-weight: 300; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--blue-d);
+    letter-spacing: 0.15em; margin-bottom: 10px; text-transform: uppercase;
+  }
+
+  .option-row {
+    margin-bottom: 20px;
+  }
+  .option-row select {
+    width: 100%;
+    background: rgba(255,255,255,0.8);
+    border: 1.5px solid var(--blue-l);
+    border-radius: 12px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 11px 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .option-row select:focus { border-color: var(--blue); }
+
+  .target-input-wrap {
+    display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px;
+  }
+  .target-input-wrap input[type="number"] {
+    flex: 1;
+    background: rgba(255,255,255,0.8);
+    border: 1.5px solid var(--blue-l);
+    border-radius: 12px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 26px; font-weight: 700;
+    padding: 10px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .target-input-wrap input[type="number"]:focus { border-color: var(--blue); }
+  .target-input-wrap select {
+    background: rgba(255,255,255,0.8);
+    border: 1.5px solid var(--blue-l);
+    border-radius: 12px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px; font-weight: 700;
+    padding: 10px 12px;
+    outline: none; cursor: pointer;
+  }
+
+  .presets {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px;
+  }
+  .preset-btn {
+    padding: 5px 14px;
+    background: rgba(255,255,255,0.7);
+    border: 1.5px solid var(--blue-l);
+    border-radius: 20px;
+    color: var(--ink-mid);
+    font-family: inherit;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover {
+    background: var(--blue-l); border-color: var(--blue); color: var(--blue-d);
+    transform: translateY(-1px);
+  }
+
+  /* 圧縮ボタン */
+  .btn-compress {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, #7ac4e8, #4090c8);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 6px 20px rgba(60,128,192,0.35);
+  }
+  .btn-compress:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(60,128,192,0.4);
+  }
+  .btn-compress:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 3px 10px rgba(60,128,192,0.25);
+  }
+  .btn-compress:disabled {
+    background: linear-gradient(135deg, var(--blue-l), #a0c8e8);
+    box-shadow: none; cursor: not-allowed;
+  }
+
+  /* プログレス */
+  .progress-wrap {
+    display: none;
+    margin-top: 16px;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(90,170,224,0.25);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-label {
+    font-size: 12px; color: var(--ink-mid); font-weight: 300;
+    margin-bottom: 8px; display: flex; justify-content: space-between; letter-spacing: 0.05em;
+  }
+  .progress-bar-bg {
+    background: var(--blue-pale); border-radius: 20px; height: 6px; overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--blue-d));
+    border-radius: 20px; transition: width 0.3s; width: 0%;
+  }
+
+  /* 結果 */
+  .result {
+    display: none;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(90,170,224,0.3);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-top: 16px;
+    box-shadow: 0 4px 16px var(--shadow);
+  }
+  .result.visible { display: block; }
+  .result-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .result-before { font-size: 13px; color: var(--ink-light); text-decoration: line-through; font-weight: 300; }
+  .arrow { font-size: 14px; color: var(--blue); }
+  .result-after { font-size: 24px; font-weight: 700; color: var(--blue-d); }
+  .result-pct {
+    margin-left: auto; font-size: 12px; font-weight: 700;
+    color: var(--blue-d); background: var(--blue-pale);
+    border-radius: 20px; padding: 3px 10px; letter-spacing: 0.05em;
+  }
+  .result-pct.warn { color: var(--ink-light); background: #f0f4f8; }
+  .result-detail {
+    font-size: 11px; color: var(--ink-light); margin-bottom: 14px;
+    letter-spacing: 0.04em; padding-left: 8px;
+    border-left: 2px solid var(--blue-l); margin-top: 6px; font-weight: 300;
+  }
+
+  .btn-download {
+    width: 100%; padding: 12px;
+    background: rgba(255,255,255,0.8);
+    color: var(--blue-d);
+    border: 1.5px solid var(--blue);
+    border-radius: 12px;
+    font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: 0.1em;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(90,170,224,0.2);
+  }
+  .btn-download:hover {
+    background: var(--blue-l); transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(90,170,224,0.3);
+  }
+
+  .btn-reset {
+    width: 100%; padding: 9px; background: transparent;
+    color: var(--ink-light); border: 1px solid rgba(90,170,224,0.25);
+    border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 300;
+    cursor: pointer; margin-top: 10px; letter-spacing: 0.08em; transition: all 0.15s;
+  }
+  .btn-reset:hover { color: var(--ink-mid); border-color: var(--blue-l); }
+
+  .note {
+    font-size: 11px; color: var(--ink-light); text-align: center;
+    margin-top: 14px; letter-spacing: 0.05em; line-height: 1.7; font-weight: 300;
+  }
+
+  /* 泡 */
+  .bubbles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .bubble {
+    position: absolute;
+    bottom: -60px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.7);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+    10%  { opacity: 1; }
+    80%  { opacity: 0.6; }
+    100% { transform: translateY(-110vh) translateX(var(--drift)) scale(0.6); opacity: 0; }
+  }
+
+  .spinner {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="bubbles" id="bubbles"></div>
+
+<header>
+  <h1>Fizz Video</h1>
+  <p class="subtitle">動画を目標サイズまでかるくするよ</p>
+</header>
+
+<div class="loading-banner" id="loading-banner">
+  <span style="display:inline-block;width:11px;height:11px;border:2px solid rgba(90,170,224,0.3);border-top-color:var(--blue);border-radius:50%;animation:spin 0.7s linear infinite"></span>
+  ffmpeg を読み込んでいます（初回のみ少し時間がかかります）...
+</div>
+
+<div class="drop-zone disabled" id="drop-zone">
+  <svg class="drop-icon" width="64" height="52" viewBox="0 0 64 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="8" width="48" height="36" rx="4" stroke="#5aaae0" stroke-width="2" fill="rgba(184,221,245,0.2)"/>
+    <rect x="8" y="12" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <rect x="8" y="21" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <rect x="8" y="30" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <rect x="50" y="12" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <rect x="50" y="21" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <rect x="50" y="30" width="6" height="5" rx="1" fill="#5aaae0" opacity="0.4"/>
+    <circle cx="32" cy="26" r="9" fill="rgba(90,170,224,0.15)"/>
+    <path d="M28 22 L38 26 L28 30 Z" fill="#5aaae0" opacity="0.8"/>
+  </svg>
+  <div class="drop-text">ここに動画をドロップ</div>
+  <span class="drop-sub">クリックでも選べます — MP4 / MOV / WebM 対応</span>
+  <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm,video/*">
+</div>
+
+<div class="panel" id="panel">
+  <div class="card">
+    <div class="file-info">
+      <div class="file-icon">🎬</div>
+      <div class="file-meta">
+        <div class="file-name" id="fname"></div>
+        <div class="file-dim" id="fdim"></div>
+      </div>
+    </div>
+
+    <div class="section-label">解像度</div>
+    <div class="option-row">
+      <select id="scale-select">
+        <option value="1.0">元のまま（100%）</option>
+        <option value="0.75">75%</option>
+        <option value="0.5" selected>50%（おすすめ）</option>
+        <option value="0.25">25%</option>
+      </select>
+    </div>
+
+    <div class="section-label">目標サイズ（以下にする）</div>
+    <div class="target-input-wrap">
+      <input type="number" id="target-val" value="10" min="0.1" step="0.1">
+      <select id="target-unit">
+        <option value="mb">MB</option>
+        <option value="kb">KB</option>
+      </select>
+    </div>
+    <div class="presets">
+      <button class="preset-btn" data-val="50"  data-unit="mb">50 MB</button>
+      <button class="preset-btn" data-val="20"  data-unit="mb">20 MB</button>
+      <button class="preset-btn" data-val="10"  data-unit="mb">10 MB</button>
+      <button class="preset-btn" data-val="5"   data-unit="mb">5 MB</button>
+    </div>
+
+    <button class="btn-compress" id="btn-compress">ぎゅっとする</button>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-text">処理中...</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="result-row">
+        <span class="result-before" id="r-before"></span>
+        <span class="arrow">→</span>
+        <span class="result-after" id="r-after"></span>
+        <span class="result-pct" id="r-pct"></span>
+      </div>
+      <div class="result-detail" id="r-detail"></div>
+      <button class="btn-download" id="btn-download">ダウンロードする</button>
+    </div>
+
+    <button class="btn-reset" id="btn-reset">↩ 別の動画を選ぶ</button>
+    <p class="note">動画の長さや解像度によって数分かかることがあります</p>
+  </div>
+</div>
+
+<video id="video-probe" style="display:none"></video>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<script>
+// 泡を生成
+(function() {
+  const container = document.getElementById('bubbles');
+  for (let i = 0; i < 18; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 6 + Math.random() * 20;
+    const drift = (Math.random() - 0.5) * 60;
+    b.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      animation-duration:${6+Math.random()*10}s;
+      animation-delay:${Math.random()*12}s;
+      --drift:${drift}px;
+    `;
+    container.appendChild(b);
+  }
+})();
+
+const { FFmpeg } = FFmpegWASM;
+const { fetchFile, toBlobURL } = FFmpegUtil;
+const ffmpeg = new FFmpeg();
+
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const panel       = document.getElementById('panel');
+const fname       = document.getElementById('fname');
+const fdim        = document.getElementById('fdim');
+const scaleSelect = document.getElementById('scale-select');
+const targetVal   = document.getElementById('target-val');
+const targetUnit  = document.getElementById('target-unit');
+const btnCompress = document.getElementById('btn-compress');
+const progressWrap= document.getElementById('progress-wrap');
+const progressBar = document.getElementById('progress-bar');
+const progressText= document.getElementById('progress-text');
+const progressPct = document.getElementById('progress-pct');
+const result      = document.getElementById('result');
+const rBefore     = document.getElementById('r-before');
+const rAfter      = document.getElementById('r-after');
+const rPct        = document.getElementById('r-pct');
+const rDetail     = document.getElementById('r-detail');
+const btnDownload = document.getElementById('btn-download');
+const btnReset    = document.getElementById('btn-reset');
+const videoProbe  = document.getElementById('video-probe');
+const loadingBanner = document.getElementById('loading-banner');
+
+let currentFile = null, outputBlob = null;
+let videoDuration = 0, videoW = 0, videoH = 0;
+
+function fmtSize(b) { return b >= 1000000 ? (b/1000000).toFixed(2)+' MB' : (b/1000).toFixed(0)+' KB'; }
+function fmtTime(s) { const m=Math.floor(s/60),sec=Math.floor(s%60); return m>0?`${m}分${sec}秒`:`${sec}秒`; }
+function getTargetBytes() { const v=parseFloat(targetVal.value); return targetUnit.value==='mb'?v*1000000:v*1000; }
+
+ffmpeg.on('progress', ({ progress }) => {
+  const pct = Math.round(Math.min(progress, 1) * 100);
+  progressBar.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+});
+
+(async () => {
+  try {
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+    loadingBanner.classList.add('hidden');
+    dropZone.classList.remove('disabled');
+  } catch(e) {
+    loadingBanner.textContent = '⚠️ 読み込み失敗: ' + e.message;
+    console.error(e);
+  }
+})();
+
+function loadFile(file) {
+  currentFile = file; outputBlob = null;
+  result.classList.remove('visible');
+  progressWrap.classList.remove('visible');
+  fname.textContent = file.name;
+  fdim.textContent = fmtSize(file.size);
+  const url = URL.createObjectURL(file);
+  videoProbe.src = url;
+  videoProbe.onloadedmetadata = () => {
+    videoDuration = videoProbe.duration;
+    videoW = videoProbe.videoWidth;
+    videoH = videoProbe.videoHeight;
+    fdim.textContent = `${videoW}×${videoH}px ／ ${fmtTime(videoDuration)} ／ ${fmtSize(file.size)}`;
+  };
+  dropZone.style.display = 'none';
+  panel.classList.add('visible');
+}
+
+async function compress() {
+  if (!ffmpeg.loaded) { alert('ffmpegがまだ読み込まれていません'); return; }
+  const targetBytes = getTargetBytes();
+  const scale = parseFloat(scaleSelect.value);
+  const ext = currentFile.name.split('.').pop().toLowerCase();
+  const inputName = 'input.' + ext;
+  const outputName = 'output.mp4';
+
+  btnCompress.disabled = true;
+  btnCompress.innerHTML = '<span class="spinner"></span>圧縮中...';
+  result.classList.remove('visible');
+  progressWrap.classList.add('visible');
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressText.textContent = '処理中...';
+
+  try {
+    const audioBitrate = 64000;
+    const duration = videoDuration || 60;
+    const audioBytes = (audioBitrate/8)*duration;
+    const videoBytes = Math.max(targetBytes-audioBytes, targetBytes*0.8);
+    const videoBitrate = Math.floor((videoBytes*8)/duration);
+    const scaleFilter = scale<1
+      ? `scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`
+      : 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+
+    progressText.textContent = 'ファイルを読み込み中...';
+    await ffmpeg.writeFile(inputName, await fetchFile(currentFile));
+    progressText.textContent = 'エンコード中...';
+
+    await ffmpeg.exec([
+      '-i', inputName,
+      '-vf', scaleFilter,
+      '-c:v', 'libx264',
+      '-b:v', videoBitrate+'',
+      '-maxrate', Math.floor(videoBitrate*1.5)+'',
+      '-bufsize', Math.floor(videoBitrate*2)+'',
+      '-c:a', 'aac', '-b:a', '64k',
+      '-movflags', '+faststart',
+      '-y', outputName
+    ]);
+
+    const data = await ffmpeg.readFile(outputName);
+    outputBlob = new Blob([data.buffer], { type: 'video/mp4' });
+    try { await ffmpeg.deleteFile(inputName); } catch(e) {}
+    try { await ffmpeg.deleteFile(outputName); } catch(e) {}
+
+    progressWrap.classList.remove('visible');
+
+    const pct = Math.round((1-outputBlob.size/currentFile.size)*100);
+    rBefore.textContent = fmtSize(currentFile.size);
+    rAfter.textContent  = fmtSize(outputBlob.size);
+    rPct.textContent    = pct>0?`−${pct}%`:'変化なし';
+    rPct.className      = 'result-pct'+(pct<=0?' warn':'');
+    const newW=Math.round(videoW*scale), newH=Math.round(videoH*scale);
+    rDetail.textContent = scale<1
+      ? `解像度: ${videoW}×${videoH} → ${newW}×${newH} ／ ビットレート: ${Math.round(videoBitrate/1000)} kbps`
+      : `ビットレート: ${Math.round(videoBitrate/1000)} kbps ／ 解像度そのまま`;
+    if (outputBlob.size>targetBytes) rDetail.textContent += ' ／ ⚠️ 目標より少し大きくなりました';
+    result.classList.add('visible');
+  } catch(e) {
+    alert('圧縮中にエラーが発生しました: '+e.message);
+    progressWrap.classList.remove('visible');
+  }
+  btnCompress.disabled = false;
+  btnCompress.textContent = 'もう一回ぎゅっとする';
+}
+
+btnCompress.addEventListener('click', compress);
+btnDownload.addEventListener('click', () => {
+  if (!outputBlob) return;
+  const base = currentFile.name.replace(/\.[^.]+$/,'');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(outputBlob);
+  a.download = base+'_compressed.mp4';
+  a.click();
+});
+btnReset.addEventListener('click', () => {
+  currentFile=outputBlob=null;
+  panel.classList.remove('visible');
+  result.classList.remove('visible');
+  progressWrap.classList.remove('visible');
+  dropZone.style.display='';
+  fileInput.value='';
+  btnCompress.textContent='ぎゅっとする';
+  btnCompress.disabled=false;
+});
+document.querySelectorAll('.preset-btn').forEach(b=>{
+  b.addEventListener('click',()=>{ targetVal.value=b.dataset.val; targetUnit.value=b.dataset.unit; });
+});
+dropZone.addEventListener('click',()=>{ if(!dropZone.classList.contains('disabled')) fileInput.click(); });
+fileInput.addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+dropZone.addEventListener('dragover',e=>{ e.preventDefault(); if(!dropZone.classList.contains('disabled')) dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('video/')) loadFile(f);
+});
+</script>
+</body>
+</html>
